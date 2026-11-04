@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import DashboardLayout from "../layouts/DashboardLayout";
 import { listTable, updateRow, deleteRow } from "../lib/offline";
 import { calculatePrice } from "../utils/priceCalculator";
+import { supabase } from "../lib/supabase";
 
 const STATUSES = [
   { value: "pending", label: "Pending", badge: "bg-yellow-100 text-yellow-800" },
@@ -92,12 +93,12 @@ const Row = ({ label, children }) => (
   </div>
 );
 
-const PriceInput = ({ value, onSave }) => {
+const PriceInput = ({ value, onSave, label = "Price (Rs) - change kar sakte hain" }) => {
   const [v, setV] = useState(String(value ?? ""));
   useEffect(() => setV(String(value ?? "")), [value]);
   return (
     <div className="mt-2">
-      <label className="block text-sm text-gray-600 mb-1">Price (Rs) - change kar sakte hain</label>
+      <label className="block text-sm text-gray-600 mb-1">{label}</label>
       <input
         type="number"
         min="0"
@@ -110,6 +111,66 @@ const PriceInput = ({ value, onSave }) => {
         }}
         className="border rounded-lg px-3 py-2 w-full"
       />
+    </div>
+  );
+};
+
+const isOverdue = o =>
+  o.dueDate &&
+  norm(o.status) !== "completed" &&
+  new Date(o.dueDate) < new Date(new Date().toDateString());
+
+const OrderPhotos = ({ paths, pendingSync }) => {
+  const [urls, setUrls] = useState([]);
+  const [zoom, setZoom] = useState("");
+  const key = (paths || []).join("|");
+
+  useEffect(() => {
+    let alive = true;
+    if (!paths?.length || !navigator.onLine) {
+      setUrls([]);
+      return undefined;
+    }
+    supabase.storage
+      .from("order-photos")
+      .createSignedUrls(paths, 3600)
+      .then(({ data }) => {
+        if (alive && data) setUrls(data.map(d => d.signedUrl).filter(Boolean));
+      });
+    return () => {
+      alive = false;
+    };
+  }, [key]);
+
+  if (!paths?.length) return null;
+  return (
+    <div className="mt-3">
+      <div className="text-sm text-gray-600 mb-1">Customer photos ({paths.length})</div>
+      {urls.length ? (
+        <div className="flex gap-2 flex-wrap">
+          {urls.map((u, i) => (
+            <img
+              key={i}
+              src={u}
+              alt="cloth"
+              onClick={() => setZoom(u)}
+              className="w-20 h-20 object-cover rounded-lg border cursor-pointer"
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="text-xs text-gray-500">
+          {pendingSync ? "Photos upload ho rahi hain..." : "Photos dekhne ke liye internet chahiye"}
+        </div>
+      )}
+      {zoom && (
+        <div
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+          onClick={() => setZoom("")}
+        >
+          <img src={zoom} alt="" className="max-h-[85vh] max-w-full rounded-lg" />
+        </div>
+      )}
     </div>
   );
 };
@@ -145,7 +206,12 @@ const OrderCardTailor = ({ o, onStatus, onDelete, onField }) => {
     <div className="bg-white rounded-xl shadow p-4 border-l-4 border-red-600">
       <div className="flex justify-between items-start mb-2">
         <div>
-          <div className="font-bold text-lg">{o.name}</div>
+          <div className="font-bold text-lg">
+            {o.name}
+            {isOverdue(o) && (
+              <span className="ml-2 text-xs bg-red-600 text-white px-2 py-0.5 rounded">OVERDUE</span>
+            )}
+          </div>
           <div className="text-xs text-gray-500">{shortId(o.id)} · {fmtDate(o.createdAt)}</div>
         </div>
         <StatusBadge status={o.status} pending={o._pending} />
@@ -155,6 +221,15 @@ const OrderCardTailor = ({ o, onStatus, onDelete, onField }) => {
       <Row label="Complexity">{o.complexity}</Row>
       <Row label="Measurements">{o.measurements}</Row>
       <PriceInput value={o.totalPrice} onSave={n => onField(o.id, { totalPrice: n })} />
+      <PriceInput
+        label="Advance paid (Rs)"
+        value={o.advancePaid || 0}
+        onSave={n => onField(o.id, { advancePaid: n })}
+      />
+      <div className="text-sm font-semibold mt-1">
+        Remaining: {money(Number(o.totalPrice || 0) - Number(o.advancePaid || 0))}
+      </div>
+      <OrderPhotos paths={o.photoPaths} pendingSync={o._pending} />
 
       <label className="block text-sm text-gray-600 mt-3 mb-1">Delivery date</label>
       <input
@@ -307,6 +382,13 @@ const OrderCardUser = ({ o, onSave }) => {
             <Row label="Complexity">{o.complexity}</Row>
             <Row label="Measurements">{o.measurements}</Row>
             <Row label="Price">{money(o.totalPrice)}</Row>
+            {Number(o.advancePaid) > 0 && (
+              <>
+                <Row label="Advance paid">{money(o.advancePaid)}</Row>
+                <Row label="Remaining">{money(Number(o.totalPrice || 0) - Number(o.advancePaid || 0))}</Row>
+              </>
+            )}
+            <OrderPhotos paths={o.photoPaths} pendingSync={o._pending} />
             {o.dueDate && <Row label="Expected delivery">{fmtDate(o.dueDate)}</Row>}
           </div>
           {o.tailorNote && (
@@ -437,7 +519,11 @@ export default function Dashboard() {
   const remove = table => async id => {
     if (!window.confirm("Delete this entry?")) return;
     try {
-      await deleteRow(TABLES[table], id);
+      const photoPaths = table === "orders" ? orders.find(o => o.id === id)?.photoPaths : null;
+      const r = await deleteRow(TABLES[table], id);
+      if (!r.queued && photoPaths?.length) {
+        await supabase.storage.from("order-photos").remove(photoPaths);
+      }
       loadAll();
     } catch (err) {
       toast.error(err.message || "Delete failed");
@@ -476,6 +562,11 @@ export default function Dashboard() {
   );
 
   const count = s => orders.filter(o => norm(o.status) === s).length;
+  const overdueCount = orders.filter(isOverdue).length;
+  const toCollect = orders.reduce(
+    (a, o) => a + Math.max(0, Number(o.totalPrice || 0) - Number(o.advancePaid || 0)),
+    0
+  );
   const earned = orders
     .filter(o => norm(o.status) === "completed")
     .reduce((a, o) => a + Number(o.totalPrice || 0), 0);
@@ -561,6 +652,10 @@ export default function Dashboard() {
           <div className="text-sm">Completed value</div>
         </div>
       </div>
+
+      <p className="mb-4 text-sm">
+        Overdue orders: <b>{overdueCount}</b> · Baaqi wasool karna hai: <b>{money(toCollect)}</b>
+      </p>
 
       <div className="flex gap-2 mb-4 overflow-x-auto">
         {tabs.map(t => (

@@ -4,12 +4,30 @@
 import { openDB } from "idb";
 import { supabase } from "./supabase";
 
-const dbPromise = openDB("shan-tailor-offline", 1, {
+const dbPromise = openDB("shan-tailor-offline", 2, {
   upgrade(db) {
-    db.createObjectStore("cache");
-    db.createObjectStore("outbox", { keyPath: "qid", autoIncrement: true });
+    if (!db.objectStoreNames.contains("cache")) db.createObjectStore("cache");
+    if (!db.objectStoreNames.contains("outbox"))
+      db.createObjectStore("outbox", { keyPath: "qid", autoIncrement: true });
+    if (!db.objectStoreNames.contains("blobs")) db.createObjectStore("blobs");
   },
 });
+
+const PHOTO_BUCKET = "order-photos";
+
+// Phone mein rakhi photos Supabase Storage par upload (retry-safe)
+async function uploadBlobs(paths) {
+  const db = await dbPromise;
+  for (const path of paths) {
+    const blob = await db.get("blobs", path);
+    if (!blob) continue; // pehle upload ho chuki
+    const { error } = await supabase.storage
+      .from(PHOTO_BUCKET)
+      .upload(path, blob, { contentType: "image/jpeg", upsert: false });
+    if (error && !/already exists|duplicate/i.test(error.message || "")) throw error;
+    await db.delete("blobs", path);
+  }
+}
 
 const toSnake = k => k.replace(/[A-Z]/g, c => "_" + c.toLowerCase());
 const toCamel = k => k.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
@@ -88,15 +106,35 @@ async function enqueue(item) {
 }
 
 // returns { queued: true } agar offline save hua
-export async function insertRow(table, row) {
+export async function insertRow(table, row, { photos = [] } = {}) {
   const user = getCachedUser();
   if (!user?.id) throw new Error("You must be logged in");
   const id = crypto.randomUUID();
-  const payload = { id, user_id: user.id, ...toDb(row) };
+  const db = await dbPromise;
+  const paths = [];
+  for (let i = 0; i < photos.length; i++) {
+    const path = `${user.id}/${id}-${i}.jpg`;
+    await db.put("blobs", photos[i], path);
+    paths.push(path);
+  }
+  const payload = {
+    id,
+    user_id: user.id,
+    ...toDb(row),
+    ...(paths.length ? { photo_paths: paths } : {}),
+  };
   if (navigator.onLine) {
-    const { error } = await supabase.from(table).insert(payload);
-    if (!error) return { queued: false };
-    if (!isNetworkError(error)) throw new Error(error.message);
+    try {
+      await uploadBlobs(paths);
+      const { error } = await supabase.from(table).insert(payload);
+      if (!error) return { queued: false };
+      if (!isNetworkError(error)) throw new Error(error.message);
+    } catch (err) {
+      if (!isNetworkError(err)) {
+        for (const p of paths) await db.delete("blobs", p);
+        throw err;
+      }
+    }
   }
   await enqueue({ op: "insert", table, id, payload });
   return { queued: true };
@@ -136,6 +174,14 @@ export async function syncOutbox() {
     for (const it of items) {
       let error;
       if (it.op === "insert") {
+        if (it.payload.photo_paths?.length) {
+          try {
+            await uploadBlobs(it.payload.photo_paths);
+          } catch (e) {
+            if (isNetworkError(e)) break;
+            console.warn("Photo upload skipped:", e.message);
+          }
+        }
         ({ error } = await supabase
           .from(it.table)
           .upsert(it.payload, { onConflict: "id", ignoreDuplicates: true }));

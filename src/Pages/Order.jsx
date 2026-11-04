@@ -5,6 +5,7 @@ import AOS from "aos";
 import "aos/dist/aos.css";
 import { useLocation } from "react-router-dom";
 import { insertRow } from "../lib/offline";
+import { compressImage } from "../lib/image";
 import { calculatePrice } from "../utils/priceCalculator";
 import Payment from "../Components/Payment.jsx";
 
@@ -25,6 +26,17 @@ export default function Order() {
   });
 
   const [totalPrice, setTotalPrice] = useState(0);
+  const [photos, setPhotos] = useState([]);
+
+  const pickPhotos = e => {
+    const files = [...(e.target.files || [])];
+    const room = Math.max(0, 3 - photos.length);
+    if (files.length > room) toast.error("Maximum 3 photos");
+    const add = files.slice(0, room).map(f => ({ file: f, url: URL.createObjectURL(f) }));
+    setPhotos(p => [...p, ...add]);
+    e.target.value = "";
+  };
+  const removePhoto = i => setPhotos(p => p.filter((_, k) => k !== i));
 
   useEffect(() => {
     AOS.init({ duration: 900 });
@@ -63,7 +75,9 @@ export default function Order() {
     setLoading(true);
 
     try {
-      const r = await insertRow("orders", { ...formData, totalPrice });
+      const blobs = await Promise.all(photos.map(p => compressImage(p.file, 1280, 0.75)));
+      const r = await insertRow("orders", { ...formData, totalPrice }, { photos: blobs });
+      setPhotos([]);
       toast.success(
         r.queued
           ? "Offline: order saved, internet aate hi sync ho jayega"
@@ -168,12 +182,45 @@ export default function Order() {
             <option value="complex">Complex</option>
           </motion.select>
 
+          <div>
+            <label className="font-semibold text-red-600">
+              Cloth / design photos (optional, max 3)
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={pickPhotos}
+              className="block w-full mt-2 text-sm"
+            />
+            {photos.length > 0 && (
+              <div className="flex gap-2 mt-2 flex-wrap">
+                {photos.map((p, i) => (
+                  <div key={i} className="relative">
+                    <img
+                      src={p.url}
+                      alt="selected"
+                      className="w-20 h-20 object-cover rounded-lg border border-red-600"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removePhoto(i)}
+                      className="absolute -top-2 -right-2 bg-red-600 rounded-full w-6 h-6 text-xs"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             className="font-bold textlg text-red-600 mt-2"
           >
-            Total Price: ${totalPrice}
+            Total Price: Rs {totalPrice}
           </motion.div>
 
           {/* Submit button with loader */}

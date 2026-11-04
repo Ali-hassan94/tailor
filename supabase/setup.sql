@@ -44,6 +44,8 @@ create table if not exists public.orders (
   cloth_type text, complexity text,
   total_price numeric,
   status text not null default 'pending',
+  due_date date,
+  tailor_note text,
   created_at timestamptz not null default now()
 );
 
@@ -99,7 +101,7 @@ begin
     execute format('drop policy if exists "%1$s delete" on public.%1$s', t);
     -- user apna data dekhe, tailor sab ka
     execute format('create policy "%1$s select" on public.%1$s for select using (user_id = auth.uid() or public.is_tailor())', t);
-    execute format('create policy "%1$s insert" on public.%1$s for insert with check (user_id = auth.uid())', t);
+    execute format('create policy "%1$s insert" on public.%1$s for insert with check (user_id = auth.uid() and status = ''pending'')', t);
     -- status badalna / delete sirf tailor
     execute format('create policy "%1$s update" on public.%1$s for update using (public.is_tailor())', t);
     execute format('create policy "%1$s delete" on public.%1$s for delete using (public.is_tailor())', t);
@@ -145,3 +147,79 @@ where not exists (select 1 from public.designs);
 
 -- 5) Apne account ko TAILOR (admin) banane ke liye (register karne ke baad):
 -- update public.profiles set role = 'tailor' where email = 'YAHAN_APNI_EMAIL';
+-- Update 3: user apna order edit kar sake (sirf jab tak 'pending' ho), tailor price badal sake
+
+-- Price formula (app ke priceCalculator ke barabar)
+create or replace function public.calc_price(cloth text, cx text)
+returns numeric language sql immutable as $$
+  select (case cloth when 'silk' then 100 when 'linen' then 70 else 50 end)
+       * (case cx when 'moderate' then 1.5 when 'complex' then 2 else 1 end);
+$$;
+
+-- User sirf apna PENDING order update kar sakta hai, tailor sab
+drop policy if exists "orders update" on public.orders;
+create policy "orders update" on public.orders for update
+  using (public.is_tailor() or (user_id = auth.uid() and status = 'pending'))
+  with check (public.is_tailor() or (user_id = auth.uid() and status = 'pending'));
+
+-- Guard: user status/price/date/note/owner nahi badal sakta
+create or replace function public.orders_guard()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null or public.is_tailor() then
+    return new;
+  end if;
+  if old.status <> 'pending' then
+    raise exception 'Silai shuru ho chuki hai, order edit nahi ho sakta';
+  end if;
+  new.id := old.id;
+  new.user_id := old.user_id;
+  new.status := old.status;
+  new.due_date := old.due_date;
+  new.tailor_note := old.tailor_note;
+  new.created_at := old.created_at;
+  if new.cloth_type is distinct from old.cloth_type
+     or new.complexity is distinct from old.complexity then
+    new.total_price := public.calc_price(new.cloth_type, new.complexity);
+  else
+    new.total_price := old.total_price;
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists orders_guard on public.orders;
+create trigger orders_guard before update on public.orders
+  for each row execute function public.orders_guard();
+-- Update 4: tailor Home page ke liye design photos upload kar sake
+
+alter table public.designs add column if not exists category text default 'Other';
+alter table public.designs add column if not exists img_path text;
+
+-- Purane designs ki category (naam se)
+update public.designs set category = 'Sherwani'  where category = 'Other' and title ilike '%sherwani%';
+update public.designs set category = 'Waistcoat' where category = 'Other' and title ilike '%waistcoat%';
+update public.designs set category = 'Suit'      where category = 'Other' and title ilike '%suit%';
+update public.designs set category = 'Kurta'     where category = 'Other' and title ilike '%kurta%';
+update public.designs set category = 'Shalwar Kameez' where category = 'Other' and (title ilike '%shalwar%' or title ilike '%kameez%');
+update public.designs set category = 'Shirt'     where category = 'Other' and title ilike '%shirt%';
+
+-- Photos ke liye public storage bucket
+insert into storage.buckets (id, name, public)
+values ('designs', 'designs', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "designs images read" on storage.objects;
+create policy "designs images read" on storage.objects for select
+  using (bucket_id = 'designs');
+
+drop policy if exists "designs images tailor insert" on storage.objects;
+create policy "designs images tailor insert" on storage.objects for insert to authenticated
+  with check (bucket_id = 'designs' and public.is_tailor());
+
+drop policy if exists "designs images tailor update" on storage.objects;
+create policy "designs images tailor update" on storage.objects for update to authenticated
+  using (bucket_id = 'designs' and public.is_tailor());
+
+drop policy if exists "designs images tailor delete" on storage.objects;
+create policy "designs images tailor delete" on storage.objects for delete to authenticated
+  using (bucket_id = 'designs' and public.is_tailor());

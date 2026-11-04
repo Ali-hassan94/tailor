@@ -75,6 +75,7 @@ import Dashboard from "./Pages/Dashboard";
 import Register from "./Pages/Register";
 import Login from "./Pages/Login";
 import AdminAddDesign from "./Pages/AdminAddDesign";
+import ManageDesigns from "./Pages/ManageDesigns";
 import Contact from "./Components/Contact";
 
 function App() {
@@ -104,6 +105,7 @@ function App() {
             <Route path="/login" element={<Login />} />
 
             <Route path="/AdminAddDesign" element={<AdminAddDesign />} />
+            <Route path="/manage-designs" element={<ManageDesigns />} />
 
             <Route path="/Contact" element={<Contact />} />
           </Routes>

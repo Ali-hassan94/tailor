@@ -114,7 +114,8 @@
 //   );
 // }
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { logoutUser } from "../lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   FiMenu,
@@ -127,11 +128,23 @@ import {
   FiPlusSquare,
   FiLogIn,
   FiUserPlus,
+  FiLogOut,
 } from "react-icons/fi";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
+
+  const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const loggedIn = !!user;
+  const isTailor = ["tailor", "admin"].includes(user?.role);
+
+  const doLogout = async () => {
+    await logoutUser();
+    setOpen(false);
+    navigate("/login");
+  };
 
   const desktopLinks = [
     { name: "Home", path: "/", icon: <FiHome /> },
@@ -144,14 +157,24 @@ export default function Navbar() {
     },
     { name: "Portfolio", path: "/portfolio", icon: <FiGrid /> },
     { name: "Profile", path: "/profile", icon: <FiUser /> },
-    { name: "Dashboard", path: "/dashboard", icon: <FiSettings /> },
-    { name: "Design", path: "/AdminAddDesign", icon: <FiPlusSquare /> },
+    {
+      name: isTailor ? "Dashboard" : "My Orders",
+      path: "/dashboard",
+      icon: <FiSettings />,
+    },
+    ...(isTailor
+      ? [{ name: "Manage Designs", path: "/manage-designs", icon: <FiPlusSquare /> }]
+      : []),
   ];
 
   const mobileLinks = [
     ...desktopLinks,
-    { name: "Login", path: "/login", icon: <FiLogIn /> },
-    { name: "Register", path: "/register", icon: <FiUserPlus /> },
+    ...(loggedIn
+      ? []
+      : [
+          { name: "Login", path: "/login", icon: <FiLogIn /> },
+          { name: "Register", path: "/register", icon: <FiUserPlus /> },
+        ]),
   ];
 
   return (
@@ -194,6 +217,23 @@ export default function Navbar() {
               </Link>
             </motion.div>
           ))}
+          {loggedIn ? (
+            <button
+              onClick={doLogout}
+              className="flex items-center gap-2 px-3 py-1 rounded-lg hover:bg-red-500"
+            >
+              <FiLogOut /> Logout
+            </button>
+          ) : (
+            <>
+              <Link to="/login" className="flex items-center gap-2 px-3 py-1 rounded-lg hover:bg-red-500">
+                <FiLogIn /> Login
+              </Link>
+              <Link to="/register" className="flex items-center gap-2 px-3 py-1 rounded-lg hover:bg-red-500">
+                <FiUserPlus /> Register
+              </Link>
+            </>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
@@ -230,6 +270,15 @@ export default function Navbar() {
                 {link.name}
               </Link>
             ))}
+            {loggedIn && (
+              <button
+                onClick={doLogout}
+                className="flex items-center gap-3 px-3 py-2 rounded-lg text-lg text-left hover:bg-red-500"
+              >
+                <span className="text-2xl"><FiLogOut /></span>
+                Logout ({user?.name || "user"})
+              </button>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

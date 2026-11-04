@@ -4,7 +4,7 @@ import toast, { Toaster } from "react-hot-toast";
 import AOS from "aos";
 import "aos/dist/aos.css";
 import { useLocation } from "react-router-dom";
-import { insertRow } from "../lib/offline";
+import { insertRow, listTable } from "../lib/offline";
 import { compressImage } from "../lib/image";
 import { calculatePrice } from "../utils/priceCalculator";
 import Payment from "../Components/Payment.jsx";
@@ -27,6 +27,43 @@ export default function Order() {
 
   const [totalPrice, setTotalPrice] = useState(0);
   const [photos, setPhotos] = useState([]);
+  const [pastOrders, setPastOrders] = useState([]);
+  const [savedMeas, setSavedMeas] = useState([]);
+
+  useEffect(() => {
+    const me = JSON.parse(localStorage.getItem("user") || "null");
+    if (!me?.id) return;
+    (async () => {
+      try {
+        const o = await listTable("orders");
+        setPastOrders(o.filter(x => x.userId === me.id && x.measurements));
+        const m = await listTable("measurements");
+        setSavedMeas(m.filter(x => x.userId === me.id));
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, []);
+
+  const measText = m =>
+    `Chest: ${m.chest}, Waist: ${m.waist}, Hips: ${m.hips}, Shoulders: ${m.shoulders}, Length: ${m.length}`;
+
+  const copyFrom = e => {
+    const v = e.target.value;
+    if (!v) return;
+    const [kind, id] = v.split(":");
+    let text = "";
+    if (kind === "o") text = pastOrders.find(x => x.id === id)?.measurements || "";
+    if (kind === "m") {
+      const m = savedMeas.find(x => x.id === id);
+      if (m) text = measText(m);
+    }
+    if (text) {
+      setFormData(prev => ({ ...prev, measurements: text }));
+      toast.success("Measurements copy ho gayi");
+    }
+    e.target.value = "";
+  };
 
   const pickPhotos = e => {
     const files = [...(e.target.files || [])];
@@ -136,6 +173,32 @@ export default function Order() {
               )}
             </div>
           ))}
+
+          {/* Copy from previous */}
+          {(pastOrders.length > 0 || savedMeas.length > 0) && (
+            <div>
+              <label className="font-semibold text-red-600">
+                Purani measurements copy karein
+              </label>
+              <select
+                defaultValue=""
+                onChange={copyFrom}
+                className="mt-2 w-full p-3 bg-black text-white border border-red-600 rounded-lg"
+              >
+                <option value="">-- Chunein --</option>
+                {savedMeas.map(m => (
+                  <option key={m.id} value={`m:${m.id}`}>
+                    Saved measurements - {m.name} ({new Date(m.createdAt).toLocaleDateString()})
+                  </option>
+                ))}
+                {pastOrders.map(o => (
+                  <option key={o.id} value={`o:${o.id}`}>
+                    Order {new Date(o.createdAt).toLocaleDateString()} - {o.design || o.clothType}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Measurements */}
           <div>

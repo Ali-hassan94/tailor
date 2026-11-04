@@ -8,7 +8,10 @@ import "aos/dist/aos.css";
 import AOS from "aos";
 AOS.init();
 import { startOfflineSync } from "./lib/offline";
+import { refreshProfile } from "./lib/api";
 startOfflineSync();
+refreshProfile();
+window.addEventListener("online", refreshProfile);
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>

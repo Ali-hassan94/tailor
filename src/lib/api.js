@@ -72,3 +72,30 @@ export async function listDesigns() {
   const json = await res.json();
   return json.map((d, i) => ({ ...d, _id: String(i) }));
 }
+
+// Role (user/tailor) Supabase se refresh: tailor banne ke baad dobara login ki zaroorat nahi
+export async function refreshProfile() {
+  try {
+    if (!navigator.onLine) return;
+    const { data } = await supabase.auth.getSession();
+    const session = data?.session;
+    if (!session) return;
+    const cached = JSON.parse(localStorage.getItem("user") || "null");
+    if (!cached) return;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", session.user.id)
+      .maybeSingle();
+    if (!profile) return;
+    const changedRole = cached.role !== profile.role;
+    if (changedRole || cached.name !== profile.name || cached.phone !== profile.phone) {
+      const user = { ...cached, name: profile.name, phone: profile.phone, role: profile.role };
+      localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("role", user.role);
+      if (changedRole) window.location.reload();
+    }
+  } catch {
+    /* offline ya error: cached role chalta rahe */
+  }
+}

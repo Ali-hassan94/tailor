@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { listDesigns } from "../lib/api";
+import { supabase } from "../lib/supabase";
 
 const isNew = d =>
   d.createdAt && Date.now() - new Date(d.createdAt).getTime() < 7 * 24 * 3600 * 1000;
@@ -24,6 +25,14 @@ export default function LatestDesigns() {
       window.removeEventListener("online", load);
     };
   }, []);
+
+  const del = async d => {
+    if (!window.confirm(`Delete "${d.title}"?`)) return;
+    const { error } = await supabase.from("designs").delete().eq("id", d.id);
+    if (error) return alert(error.message);
+    if (d.imgPath) await supabase.storage.from("designs").remove([d.imgPath]);
+    setDesigns(list => list.filter(x => x.id !== d.id));
+  };
 
   const cats = useMemo(
     () => ["All", ...new Set(designs.map(d => d.category || "Other"))],
@@ -88,6 +97,14 @@ export default function LatestDesigns() {
                 >
                   Book Similar
                 </button>
+                {isTailor && d.id && (
+                  <button
+                    onClick={() => del(d)}
+                    className="w-full mt-2 text-red-400 border border-red-500 rounded-lg py-1 text-xs"
+                  >
+                    Delete design
+                  </button>
+                )}
               </div>
             </div>
           ))}

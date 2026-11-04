@@ -197,7 +197,8 @@ const ContactButtons = ({ phone, message }) => {
 
 /* ---------------- Tailor cards ---------------- */
 
-const OrderCardTailor = ({ o, onStatus, onDelete, onField }) => {
+const OrderCardTailor = ({ o, onStatus, onDelete, onField, history = [], lastMeas }) => {
+  const [showHist, setShowHist] = useState(false);
   const [note, setNote] = useState(o.tailorNote || "");
   useEffect(() => setNote(o.tailorNote || ""), [o.tailorNote]);
   const done = norm(o.status) === "completed";
@@ -250,6 +251,40 @@ const OrderCardTailor = ({ o, onStatus, onDelete, onField }) => {
 
       <label className="block text-sm text-gray-600 mt-3 mb-1">Status</label>
       <StatusSelect value={o.status} onChange={v => onStatus(o.id, v)} />
+
+      {(history.length > 0 || lastMeas) && (
+        <>
+          <button
+            onClick={() => setShowHist(v => !v)}
+            className="mt-3 w-full border rounded-lg py-2 text-sm"
+          >
+            📋 Customer history ({history.length} past orders)
+          </button>
+          {showHist && (
+            <div className="mt-2 text-sm bg-gray-50 rounded-lg p-2 space-y-2">
+              {lastMeas && (
+                <div>
+                  <b>Saved measurements:</b> Chest {lastMeas.chest}, Waist {lastMeas.waist}, Hips{" "}
+                  {lastMeas.hips}, Shoulders {lastMeas.shoulders}, Length {lastMeas.length}
+                </div>
+              )}
+              {history.map(h => (
+                <div key={h.id} className="border-t pt-1">
+                  <div className="flex justify-between items-center">
+                    <span>
+                      {fmtDate(h.createdAt)} - {h.design || h.clothType}
+                    </span>
+                    <StatusBadge status={h.status} />
+                  </div>
+                  <div className="text-xs text-gray-600 break-words">
+                    {money(h.totalPrice)} · {h.measurements}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
 
       <ContactButtons phone={o.phone} message={done ? msg : ""} />
       {done ? (
@@ -702,6 +737,12 @@ export default function Dashboard() {
               <OrderCardTailor
                 key={o.id}
                 o={o}
+                history={orders.filter(
+                  x =>
+                    x.id !== o.id &&
+                    ((o.userId && x.userId === o.userId) || (o.phone && x.phone === o.phone))
+                )}
+                lastMeas={measurements.find(m => m.userId === o.userId)}
                 onStatus={setStatus("orders")}
                 onDelete={remove("orders")}
                 onField={setFields("orders")}

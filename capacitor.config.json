@@ -1,0 +1,6 @@
+{
+  "appId": "com.shantailor.app",
+  "appName": "Shan Tailor",
+  "webDir": "dist",
+  "server": { "androidScheme": "https" }
+}

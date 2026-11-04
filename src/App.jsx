@@ -66,7 +66,6 @@ import Footer from "./Components/Footer";
 
 import Home from "./Pages/Home";
 import Order from "./Pages/Order";
-import Measurements from "./Pages/Measurements";
 import PhysicalMeasurements from "./Pages/PhysicalMeasurements";
 import Booking from "./Pages/Booking";
 import Portfolio from "./Pages/Portfolio";
@@ -91,7 +90,6 @@ function App() {
             <Route path="/Home" element={<Home />} />
 
             <Route path="/order" element={<Order />} />
-            <Route path="/measurements" element={<Measurements />} />
             <Route
               path="/PhysicalMeasurements"
               element={<PhysicalMeasurements />}

@@ -651,7 +651,6 @@ export default function Dashboard() {
   /* ---------- Tailor view ---------- */
   const tabs = [
     { key: "orders", label: "Orders", n: orders.length },
-    { key: "measurements", label: "Measurements", n: measurements.length },
     { key: "bookings", label: "Bookings", n: bookings.length },
   ];
 

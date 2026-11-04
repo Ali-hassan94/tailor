@@ -149,9 +149,8 @@ export default function Navbar() {
   const desktopLinks = [
     { name: "Home", path: "/", icon: <FiHome /> },
     { name: "Order", path: "/order", icon: <FiEdit /> },
-    { name: "Measurements", path: "/measurements", icon: <FiGrid /> },
     {
-      name: "PhysicalMeasurements",
+      name: "Measurements",
       path: "/PhysicalMeasurements",
       icon: <FiGrid />,
     },

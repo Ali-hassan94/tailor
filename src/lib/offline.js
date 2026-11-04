@@ -22,7 +22,7 @@ async function uploadBlobs(paths) {
     const blob = await db.get("blobs", path);
     if (!blob) continue; // pehle upload ho chuki
     const { error } = await supabase.storage
-      .from(PHOTO_BUCKET)
+      .from(bucket)
       .upload(path, blob, { contentType: "image/jpeg", upsert: false });
     if (error && !/already exists|duplicate/i.test(error.message || "")) throw error;
     await db.delete("blobs", path);
@@ -106,7 +106,7 @@ async function enqueue(item) {
 }
 
 // returns { queued: true } agar offline save hua
-export async function insertRow(table, row, { photos = [] } = {}) {
+export async function insertRow(table, row, { photos = [], bucket = PHOTO_BUCKET } = {}) {
   const user = getCachedUser();
   if (!user?.id) throw new Error("You must be logged in");
   const id = crypto.randomUUID();
@@ -125,7 +125,7 @@ export async function insertRow(table, row, { photos = [] } = {}) {
   };
   if (navigator.onLine) {
     try {
-      await uploadBlobs(paths);
+      await uploadBlobs(paths, bucket);
       const { error } = await supabase.from(table).insert(payload);
       if (!error) return { queued: false };
       if (!isNetworkError(error)) throw new Error(error.message);
@@ -136,7 +136,7 @@ export async function insertRow(table, row, { photos = [] } = {}) {
       }
     }
   }
-  await enqueue({ op: "insert", table, id, payload });
+  await enqueue({ op: "insert", table, id, payload, bucket });
   return { queued: true };
 }
 
@@ -176,7 +176,7 @@ export async function syncOutbox() {
       if (it.op === "insert") {
         if (it.payload.photo_paths?.length) {
           try {
-            await uploadBlobs(it.payload.photo_paths);
+            await uploadBlobs(it.payload.photo_paths, it.bucket || PHOTO_BUCKET);
           } catch (e) {
             if (isNetworkError(e)) break;
             console.warn("Photo upload skipped:", e.message);

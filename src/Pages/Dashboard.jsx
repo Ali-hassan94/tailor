@@ -667,6 +667,12 @@ export default function Dashboard() {
       >
         🖼️ Add / Manage Designs (Home page demo)
       </Link>
+      <Link
+        to="/PhysicalMeasurements"
+        className="inline-block mb-4 ml-2 bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold"
+      >
+        📏 Physical Customers
+      </Link>
       {error && <p className="text-red-500 mb-4">{error}</p>}
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">

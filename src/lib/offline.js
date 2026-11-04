@@ -16,7 +16,7 @@ const dbPromise = openDB("shan-tailor-offline", 2, {
 const PHOTO_BUCKET = "order-photos";
 
 // Phone mein rakhi photos Supabase Storage par upload (retry-safe)
-async function uploadBlobs(paths) {
+async function uploadBlobs(paths, bucket = PHOTO_BUCKET) {
   const db = await dbPromise;
   for (const path of paths) {
     const blob = await db.get("blobs", path);

@@ -3,7 +3,6 @@ import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
 import DashboardLayout from "../layouts/DashboardLayout";
 import { listTable, updateRow, deleteRow } from "../lib/offline";
-import { calculatePrice } from "../utils/priceCalculator";
 import { supabase } from "../lib/supabase";
 
 const STATUSES = [
@@ -93,7 +92,7 @@ const Row = ({ label, children }) => (
   </div>
 );
 
-const PriceInput = ({ value, onSave, label = "Price (Rs) - change kar sakte hain" }) => {
+const PriceInput = ({ value, onSave, label = "Price (Rs) - aap set karein" }) => {
   const [v, setV] = useState(String(value ?? ""));
   useEffect(() => setV(String(value ?? "")), [value]);
   return (
@@ -385,8 +384,6 @@ const OrderCardUser = ({ o, onSave }) => {
     setEditing(true);
   };
   const ch = e => setF(prev => ({ ...prev, [e.target.name]: e.target.value }));
-  const priceChanged = f.clothType !== o.clothType || f.complexity !== o.complexity;
-  const newPrice = priceChanged ? calculatePrice(f.clothType, f.complexity) : Number(o.totalPrice || 0);
 
   const save = async () => {
     if (Object.values(f).some(v => !String(v).trim())) {
@@ -394,7 +391,6 @@ const OrderCardUser = ({ o, onSave }) => {
       return;
     }
     const patch = { ...f };
-    if (priceChanged) patch.totalPrice = newPrice;
     if (await onSave(o.id, patch)) setEditing(false);
   };
 
@@ -416,8 +412,10 @@ const OrderCardUser = ({ o, onSave }) => {
             <Row label="Cloth">{o.clothType}</Row>
             <Row label="Complexity">{o.complexity}</Row>
             <Row label="Measurements">{o.measurements}</Row>
-            <Row label="Price">{money(o.totalPrice)}</Row>
-            {Number(o.advancePaid) > 0 && (
+            <Row label="Price">
+              {Number(o.totalPrice) > 0 ? money(o.totalPrice) : "Tailor confirm karega"}
+            </Row>
+            {Number(o.totalPrice) > 0 && Number(o.advancePaid) > 0 && (
               <>
                 <Row label="Advance paid">{money(o.advancePaid)}</Row>
                 <Row label="Remaining">{money(Number(o.totalPrice || 0) - Number(o.advancePaid || 0))}</Row>
@@ -469,7 +467,6 @@ const OrderCardUser = ({ o, onSave }) => {
             <option value="moderate">Moderate</option>
             <option value="complex">Complex</option>
           </select>
-          <div className="text-sm font-semibold">New price: {money(newPrice)}</div>
           <div className="flex gap-2">
             <button onClick={save} className="flex-1 bg-green-600 text-white rounded-lg py-2 text-sm font-semibold">
               Save
@@ -631,7 +628,7 @@ export default function Dashboard() {
             <h3 className="text-xl font-semibold mb-3">My Bookings</h3>
             <div className="grid gap-3 md:grid-cols-2 mb-8">
               {bookings.map(b => (
-                <SimpleCardUser key={b.id} item={b} title={b.service} sub={`${fmtDate(b.date)} · ${money(b.totalPrice)}`} />
+                <SimpleCardUser key={b.id} item={b} title={b.service} sub={`${fmtDate(b.date)}${Number(b.totalPrice) > 0 ? " · " + money(b.totalPrice) : ""}`} />
               ))}
             </div>
           </>

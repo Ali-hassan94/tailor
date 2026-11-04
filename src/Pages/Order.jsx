@@ -113,7 +113,7 @@ export default function Order() {
 
     try {
       const blobs = await Promise.all(photos.map(p => compressImage(p.file, 1280, 0.75)));
-      const r = await insertRow("orders", { ...formData, totalPrice }, { photos: blobs });
+      const r = await insertRow("orders", { ...formData }, { photos: blobs });
       setPhotos([]);
       toast.success(
         r.queued
@@ -278,13 +278,6 @@ export default function Order() {
             )}
           </div>
 
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="font-bold textlg text-red-600 mt-2"
-          >
-            Total Price: Rs {totalPrice}
-          </motion.div>
 
           {/* Submit button with loader */}
           <motion.button
@@ -306,7 +299,6 @@ export default function Order() {
           </motion.button>
         </motion.form>
 
-        {totalPrice > 0 && <Payment amount={totalPrice} />}
       </div>
     </section>
   );

@@ -425,7 +425,7 @@ export default function Booking() {
     }
 
     try {
-      const r = await insertRow("bookings", { ...bookingData, totalPrice });
+      const r = await insertRow("bookings", { ...bookingData, totalPrice: 0 });
       toast.success(
         r.queued
           ? "Offline: booking saved, internet aate hi sync hogi"
@@ -534,9 +534,6 @@ export default function Booking() {
             Rush Order (holiday)
           </label>
 
-          <motion.div className="font-bold text-lg text-red-600">
-            Total Price: ${totalPrice}
-          </motion.div>
 
           <motion.button
             whileHover={{ scale: 1.05 }}
@@ -548,7 +545,6 @@ export default function Booking() {
           </motion.button>
         </motion.form>
 
-        {totalPrice > 0 && <Payment amount={totalPrice} />}
       </div>
     </section>
   );

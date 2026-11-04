@@ -90,7 +90,10 @@ export default function LatestDesigns() {
               </div>
               <div className="p-3">
                 <div className="font-semibold text-sm line-clamp-2">{d.title}</div>
-                <div className="text-xs text-gray-400 mb-2">{d.category || "Other"}</div>
+                <div className="text-xs text-gray-400 mb-1">{d.category || "Other"}</div>
+                {Number(d.price) > 0 && (
+                  <div className="text-red-400 font-bold mb-2">Rs {Number(d.price).toLocaleString()}</div>
+                )}
                 <button
                   onClick={() => navigate("/order", { state: { designTitle: d.title } })}
                   className="w-full bg-red-600 rounded-lg py-1.5 text-sm font-semibold"

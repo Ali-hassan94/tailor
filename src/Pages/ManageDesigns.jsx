@@ -40,6 +40,7 @@ export default function ManageDesigns() {
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [description, setDescription] = useState("");
+  const [price, setPrice] = useState("");
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
@@ -79,6 +80,7 @@ export default function ManageDesigns() {
         title: title.trim(),
         description: description.trim() || null,
         category,
+        price: price.trim() ? Number(price) : null,
         img: data.publicUrl,
         img_path: path,
       });
@@ -91,11 +93,23 @@ export default function ManageDesigns() {
       setPreview("");
       setTitle("");
       setDescription("");
+      setPrice("");
       load();
     } catch (err) {
       toast.error(err.message || "Upload failed (SQL update_v4 run kiya?)");
     }
     setBusy(false);
+  };
+
+  const savePrice = async (d, v) => {
+    const n = v === "" ? null : Number(v);
+    if (n === (d.price ?? null)) return;
+    const { error } = await supabase.from("designs").update({ price: n }).eq("id", d.id);
+    if (error) toast.error(error.message || "Price save failed (SQL update_v7 run kiya?)");
+    else {
+      toast.success("Price saved");
+      load();
+    }
   };
 
   const remove = async d => {
@@ -137,6 +151,15 @@ export default function ManageDesigns() {
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
+          <input
+            className={inputCls}
+            type="number"
+            min="0"
+            inputMode="numeric"
+            placeholder="Price in Rs (optional, Home page par dikhegi)"
+            value={price}
+            onChange={e => setPrice(e.target.value)}
+          />
           <textarea className={inputCls} rows={2} placeholder="Description (optional)" value={description} onChange={e => setDescription(e.target.value)} />
           <button
             onClick={add}
@@ -154,7 +177,17 @@ export default function ManageDesigns() {
               <img src={d.img} alt={d.title} loading="lazy" className="w-full h-36 object-cover" onError={e => (e.currentTarget.style.visibility = "hidden")} />
               <div className="p-2">
                 <div className="text-sm font-semibold line-clamp-2">{d.title}</div>
-                <div className="text-xs text-gray-500 mb-2">{d.category || "Other"}</div>
+                <div className="text-xs text-gray-500 mb-1">{d.category || "Other"}</div>
+                <input
+                  key={`${d.id}-${d.price ?? ""}`}
+                  type="number"
+                  min="0"
+                  inputMode="numeric"
+                  defaultValue={d.price ?? ""}
+                  placeholder="Price Rs"
+                  onBlur={e => savePrice(d, e.target.value)}
+                  className="border rounded px-2 py-1 w-full text-sm mb-2"
+                />
                 <button onClick={() => remove(d)} className="w-full text-red-600 border border-red-300 rounded-lg py-1 text-sm">
                   Delete
                 </button>

@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { OWNER_EMAIL } from "../lib/config";
+import { confirmDialog } from "../lib/confirm";
 
 export default function ManageStaff() {
   const me = JSON.parse(localStorage.getItem("user") || "null");
@@ -29,6 +30,14 @@ export default function ManageStaff() {
 
   const setRole = async (targetEmail, role) => {
     if (!navigator.onLine) return toast.error("Internet chahiye");
+    if (
+      role === "user" &&
+      !(await confirmDialog(`${targetEmail} ko tailor se hata diya jayega.`, {
+        title: "Tailor hatana hai?",
+        okText: "Haan, hatayein",
+      }))
+    )
+      return;
     setBusy(true);
     const { error } = await supabase.rpc("set_user_role", {
       target_email: targetEmail,

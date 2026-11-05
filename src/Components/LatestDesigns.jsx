@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { listDesigns } from "../lib/api";
 import { supabase } from "../lib/supabase";
+import { confirmDialog } from "../lib/confirm";
 
 const isNew = d =>
   d.createdAt && Date.now() - new Date(d.createdAt).getTime() < 7 * 24 * 3600 * 1000;
@@ -27,7 +28,7 @@ export default function LatestDesigns() {
   }, []);
 
   const del = async d => {
-    if (!window.confirm(`Delete "${d.title}"?`)) return;
+    if (!(await confirmDialog(`"${d.title}" design delete ho jayega. Ye wapas nahi ho sakta.`, { title: "Design delete karna hai?" }))) return;
     const { error } = await supabase.from("designs").delete().eq("id", d.id);
     if (error) return alert(error.message);
     if (d.imgPath) await supabase.storage.from("designs").remove([d.imgPath]);

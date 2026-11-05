@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import DashboardLayout from "../layouts/DashboardLayout";
 import { listTable, updateRow, deleteRow } from "../lib/offline";
 import { supabase } from "../lib/supabase";
+import { confirmDialog } from "../lib/confirm";
 
 const STATUSES = [
   { value: "pending", label: "Pending", badge: "bg-yellow-100 text-yellow-800" },
@@ -589,7 +590,13 @@ export default function Dashboard() {
     }
   };
   const remove = table => async id => {
-    if (!window.confirm("Delete this entry?")) return;
+    const item = { orders, measurements, bookings }[table]?.find(x => x.id === id);
+    const label = item?.name ? `"${item.name}" ka` : "Ye";
+    const sure = await confirmDialog(
+      `${label} record delete ho jayega. Ye wapas nahi ho sakta.`,
+      { title: "Delete karna hai?" }
+    );
+    if (!sure) return;
     try {
       const photoPaths = table === "orders" ? orders.find(o => o.id === id)?.photoPaths : null;
       const r = await deleteRow(TABLES[table], id);

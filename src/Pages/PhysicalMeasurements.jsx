@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { listTable, insertRow, updateRow, deleteRow } from "../lib/offline";
 import { compressImage } from "../lib/image";
+import { confirmDialog } from "../lib/confirm";
 
 const TABLE = "physical_measurements";
 const BUCKET = "physical-photos";
@@ -190,7 +191,7 @@ export default function PhysicalMeasurements() {
   };
 
   const remove = async r => {
-    if (!window.confirm(`Delete "${r.name}" ka record?`)) return;
+    if (!(await confirmDialog(`"${r.name}" ka record aur uski photos delete ho jayengi. Ye wapas nahi ho sakta.`, { title: "Customer delete karna hai?" }))) return;
     try {
       const res = await deleteRow(TABLE, r.id);
       if (!res.queued && r.photoPaths?.length) {

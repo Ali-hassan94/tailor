@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import { confirmDialog } from "../lib/confirm";
 import { listTable } from "../lib/offline";
 
 const CATEGORIES = [
@@ -113,7 +114,7 @@ export default function ManageDesigns() {
   };
 
   const remove = async d => {
-    if (!window.confirm(`Delete "${d.title}"?`)) return;
+    if (!(await confirmDialog(`"${d.title}" design delete ho jayega. Ye wapas nahi ho sakta.`, { title: "Design delete karna hai?" }))) return;
     try {
       const { error } = await supabase.from("designs").delete().eq("id", d.id);
       if (error) throw error;

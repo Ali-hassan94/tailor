@@ -58,6 +58,7 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { logoutUser } from "../lib/api";
+import ChangePassword from "../Components/ChangePassword";
 
 export default function Profile() {
   const [profile, setProfile] = useState({
@@ -141,6 +142,8 @@ export default function Profile() {
             Logout
           </button>
         </div>
+
+        <ChangePassword />
 
         <motion.div
           initial={{ opacity: 0 }}

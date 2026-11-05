@@ -249,13 +249,25 @@ export default function Order() {
             <label className="font-semibold text-red-600">
               Cloth / design photos (optional, max 3)
             </label>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={pickPhotos}
-              className="block w-full mt-2 text-sm"
-            />
+            <motion.label
+              animate={{ scale: [1, 1.03, 1] }}
+              transition={{ repeat: Infinity, duration: 1.8 }}
+              whileTap={{ scale: 0.96 }}
+              className="mt-3 flex items-center justify-center gap-2 w-full cursor-pointer rounded-lg border-2 border-dashed border-white bg-red-600 text-white font-bold py-4 text-lg shadow-lg"
+            >
+              📷 Photo chunein (optional)
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={pickPhotos}
+                className="hidden"
+              />
+            </motion.label>
+            <p className="text-sm text-gray-600 mt-1">
+              Optional hai: kapre ya design ki photo laga sakte hain, na lagayein to bhi order ho jayega.
+              {photos.length > 0 ? ` (${photos.length}/3 chuni hui)` : ""}
+            </p>
             {photos.length > 0 && (
               <div className="flex gap-2 mt-2 flex-wrap">
                 {photos.map((p, i) => (

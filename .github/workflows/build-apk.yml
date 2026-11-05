@@ -39,6 +39,9 @@ jobs:
       - name: Add Android platform
         run: npx cap add android
 
+      - name: Clean splash screen (no blurry icon)
+        run: python3 scripts/patch-android-splash.py
+
       - name: Generate app icon and splash from poster
         run: npx capacitor-assets generate --android
 

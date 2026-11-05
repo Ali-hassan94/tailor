@@ -75,6 +75,8 @@ import Register from "./Pages/Register";
 import Login from "./Pages/Login";
 import AdminAddDesign from "./Pages/AdminAddDesign";
 import ManageDesigns from "./Pages/ManageDesigns";
+import ForgotPassword from "./Pages/ForgotPassword";
+import ManageStaff from "./Pages/ManageStaff";
 import Contact from "./Components/Contact";
 
 function App() {
@@ -104,6 +106,8 @@ function App() {
 
             <Route path="/AdminAddDesign" element={<AdminAddDesign />} />
             <Route path="/manage-designs" element={<ManageDesigns />} />
+            <Route path="/manage-staff" element={<ManageStaff />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
 
             <Route path="/Contact" element={<Contact />} />
           </Routes>

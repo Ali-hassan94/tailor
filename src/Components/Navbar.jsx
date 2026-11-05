@@ -162,7 +162,10 @@ export default function Navbar() {
       icon: <FiSettings />,
     },
     ...(isTailor
-      ? [{ name: "Manage Designs", path: "/manage-designs", icon: <FiPlusSquare /> }]
+      ? [
+          { name: "Manage Designs", path: "/manage-designs", icon: <FiPlusSquare /> },
+          { name: "Staff", path: "/manage-staff", icon: <FiUser /> },
+        ]
       : []),
   ];
 

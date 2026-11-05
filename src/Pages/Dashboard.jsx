@@ -196,7 +196,7 @@ const ContactButtons = ({ phone, message }) => {
 
 /* ---------------- Tailor cards ---------------- */
 
-const OrderCardTailor = ({ o, onStatus, onDelete, onField, history = [], lastMeas }) => {
+const OrderCardTailor = ({ o, onStatus, onDelete, onField, history = [], lastMeas, tailors = [], meId }) => {
   const [showHist, setShowHist] = useState(false);
   const [note, setNote] = useState(o.tailorNote || "");
   useEffect(() => setNote(o.tailorNote || ""), [o.tailorNote]);
@@ -247,6 +247,21 @@ const OrderCardTailor = ({ o, onStatus, onDelete, onField, history = [], lastMea
         className="border rounded-lg px-3 py-2 w-full"
         placeholder="e.g. Kal tak ready ho jayega"
       />
+
+      <label className="block text-sm text-gray-600 mt-3 mb-1">Assigned to</label>
+      <select
+        value={o.assignedTo || ""}
+        onChange={e => onField(o.id, { assignedTo: e.target.value || null })}
+        className="border rounded-lg px-3 py-2 w-full bg-white"
+      >
+        <option value="">Unassigned</option>
+        {tailors.map(t => (
+          <option key={t.id} value={t.id}>
+            {t.name || t.email}
+            {t.id === meId ? " (me)" : ""}
+          </option>
+        ))}
+      </select>
 
       <label className="block text-sm text-gray-600 mt-3 mb-1">Status</label>
       <StatusSelect value={o.status} onChange={v => onStatus(o.id, v)} />
@@ -499,6 +514,14 @@ export default function Dashboard() {
   const [bookings, setBookings] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [assignFilter, setAssignFilter] = useState("");
+  const [tailors, setTailors] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("tailorsList") || "[]");
+    } catch {
+      return [];
+    }
+  });
   const [tab, setTab] = useState("orders");
   const [error, setError] = useState("");
 
@@ -530,9 +553,26 @@ export default function Dashboard() {
 
   const TABLES = { orders: "orders", measurements: "measurements", bookings: "bookings" };
 
+  const loadTailors = useCallback(async () => {
+    if (!isTailor || !navigator.onLine) return;
+    const { data } = await supabase.from("profiles").select("id,name,email").eq("role", "tailor");
+    if (data) {
+      setTailors(data);
+      localStorage.setItem("tailorsList", JSON.stringify(data));
+    }
+  }, [isTailor]);
+  useEffect(() => {
+    loadTailors();
+  }, [loadTailors]);
+
   const setStatus = table => async (id, status) => {
     try {
-      const r = await updateRow(TABLES[table], id, { status });
+      const patch = { status };
+      if (table === "orders") {
+        const cur = orders.find(o => o.id === id);
+        if (cur && !cur.assignedTo && currentUser.id) patch.assignedTo = currentUser.id;
+      }
+      const r = await updateRow(TABLES[table], id, patch);
       if (r.queued) toast("Offline: saved, internet aate hi sync hoga");
       loadAll();
     } catch (err) {
@@ -584,8 +624,18 @@ export default function Dashboard() {
   };
 
   const fOrders = useMemo(
-    () => filter(orders, ["name", "phone", "design", "clothType"]),
-    [orders, search, statusFilter]
+    () =>
+      filter(
+        orders.filter(o =>
+          assignFilter === "mine"
+            ? o.assignedTo === currentUser.id
+            : assignFilter === "none"
+            ? !o.assignedTo
+            : true
+        ),
+        ["name", "phone", "design", "clothType"]
+      ),
+    [orders, search, statusFilter, assignFilter]
   );
   const fMeas = useMemo(() => filter(measurements, ["name", "phone"]), [measurements, search, statusFilter]);
   const fBook = useMemo(
@@ -728,6 +778,17 @@ export default function Dashboard() {
             </option>
           ))}
         </select>
+        {tab === "orders" && (
+          <select
+            className="border px-3 py-2 rounded-lg bg-white"
+            value={assignFilter}
+            onChange={e => setAssignFilter(e.target.value)}
+          >
+            <option value="">All orders</option>
+            <option value="mine">My orders</option>
+            <option value="none">Unassigned</option>
+          </select>
+        )}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 pb-10">
@@ -739,6 +800,8 @@ export default function Dashboard() {
               <OrderCardTailor
                 key={o.id}
                 o={o}
+                tailors={tailors}
+                meId={currentUser.id}
                 history={orders.filter(
                   x =>
                     x.id !== o.id &&

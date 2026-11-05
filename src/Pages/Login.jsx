@@ -111,6 +111,14 @@ export default function Login() {
           </motion.button>
         </form>
 
+        <button
+          type="button"
+          onClick={() => navigate("/forgot-password")}
+          className="block mx-auto mt-3 text-red-400 underline text-sm"
+        >
+          Forgot password?
+        </button>
+
         <div className="mt-6 text-center text-gray-300">or login with</div>
         <div className="flex justify-center gap-4 mt-3">
           <motion.button

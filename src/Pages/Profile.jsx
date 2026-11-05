@@ -59,6 +59,7 @@ import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { logoutUser } from "../lib/api";
 import ChangePassword from "../Components/ChangePassword";
+import DeleteAccount from "../Components/DeleteAccount";
 
 export default function Profile() {
   const [profile, setProfile] = useState({
@@ -144,6 +145,7 @@ export default function Profile() {
         </div>
 
         <ChangePassword />
+        <DeleteAccount />
 
         <motion.div
           initial={{ opacity: 0 }}

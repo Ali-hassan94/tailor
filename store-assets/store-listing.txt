@@ -1,0 +1,23 @@
+APP NAME (max 30):
+Shan Tailor
+
+SHORT DESCRIPTION (max 80):
+Book tailoring orders, track stitching status and see latest designs.
+
+FULL DESCRIPTION:
+Shan Tailor is the official app of Shan Tailor shop.
+
+- Place tailoring orders for men's wear: shirts, suits, shalwar kameez and custom designs
+- Add photos of cloth or a design you like (optional)
+- Track your order status: Pending, In Progress, Completed
+- Browse the latest designs from the shop
+- See the delivery date and notes from your tailor
+- Works even with weak internet: your order is saved and sent when you are back online
+- Book alteration and stitching services
+
+Stitching Style, Creating Confidence.
+
+CATEGORY: Lifestyle (or Shopping)
+CONTACT EMAIL: (apni email likhein)
+PRIVACY POLICY URL: https://ali-hassan94.github.io/tailor/privacy-policy.html
+ACCOUNT DELETION URL: https://ali-hassan94.github.io/tailor/delete-account.html

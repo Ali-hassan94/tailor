@@ -1,0 +1,79 @@
+name: Build Play Store AAB
+
+# Manual run: Actions > Build Play Store AAB > Run workflow
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secrets
+        run: |
+          for v in VITE_SUPABASE_ANON_KEY KEYSTORE_B64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [ -z "${!v}" ]; then
+              echo "::error::GitHub Secret missing: $v (Settings > Secrets and variables > Actions)"
+              exit 1
+            fi
+          done
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Add Android platform
+        run: npx cap add android
+
+      - name: Clean splash screen
+        run: python3 scripts/patch-android-splash.py
+
+      - name: Set version (har release par barhta hai)
+        run: python3 scripts/set-android-version.py ${{ github.run_number }}
+
+      - name: Generate app icon and splash
+        run: npx capacitor-assets generate --android
+
+      - name: Sync web build into Android
+        run: npx cap sync android
+
+      - name: Build release bundle (AAB)
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease
+
+      - name: Sign AAB with upload key
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          jarsigner -sigalg SHA256withRSA -digestalg SHA-256 \
+            -keystore "$RUNNER_TEMP/upload.jks" \
+            -storepass "$KEYSTORE_PASSWORD" -keypass "$KEY_PASSWORD" \
+            android/app/build/outputs/bundle/release/app-release.aab "$KEY_ALIAS"
+          jarsigner -verify android/app/build/outputs/bundle/release/app-release.aab
+          rm -f "$RUNNER_TEMP/upload.jks"
+
+      - name: Upload AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: Shan-Tailor-PlayStore-AAB
+          path: android/app/build/outputs/bundle/release/app-release.aab
